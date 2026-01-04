@@ -24,6 +24,14 @@ It tracks your usage limits for various AI providers (Codex, Claude, Gemini, Ant
 
 This application relies on **Qt 6** and **KDE Frameworks 6**. 
 
+## Installation
+
+### Arch Linux (AUR)
+Install from the AUR package ([kdecodexbar](https://aur.archlinux.org/packages/kdecodexbar)):
+```bash
+yay -S kdecodexbar
+```
+
 ### Arch Linux Dependencies
 ```bash
 sudo pacman -S cmake extra-cmake-modules qt6-base qt6-tools kstatusnotifieritem kcoreaddons kconfig ki18n kwindowsystem
@@ -72,5 +80,3 @@ This will install the binary and the `.desktop` file, allowing you to launch it 
 
 ## License
 MIT
-
-

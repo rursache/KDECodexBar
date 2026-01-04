@@ -21,7 +21,7 @@ To build the package from the local source (useful for testing):
     git clone ssh://aur@aur.archlinux.org/kdecodexbar.git
     ```
 4.  Copy the `PKGBUILD` and `.SRCINFO` into that repo.
-    *   Note: You must verify the `source` array point to a valid public URL (e.g., GitHub release or git tag) before publishing. Local `dir://` sources won't work for others.
+    *   Note: The `source` array must point to a valid public URL (e.g., a GitHub release/tag tarball). Local `dir://` sources won't work for others.
 5.  Generate `.SRCINFO`:
     ```bash
     makepkg --printsrcinfo > .SRCINFO
