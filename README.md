@@ -70,3 +70,7 @@ This will install the binary and the `.desktop` file, allowing you to launch it 
 
 ## License
 MIT
+
+## Acknowledgements
+Based on [CodexBar for macOS](https://github.com/steipete/CodexBar) by **Peter Steinberger** (@steipete).
+This project brings the same functionality to the Linux desktop environment.

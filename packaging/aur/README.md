@@ -6,12 +6,7 @@ This directory contains the `PKGBUILD` for creating an Arch Linux package.
 
 To build the package from the local source (useful for testing):
 
-1.  Navigate to this directory:
-    ```bash
-    cd packaging/aur
-    ```
-
-2.  Run `makepkg`:
+1.  Run `makepkg`:
     ```bash
     makepkg -si
     ```
