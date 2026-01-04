@@ -103,6 +103,8 @@ double extractPercent(const QStringList &lines, const QString &label) {
 
 void ClaudeProvider::parseOutput(const QString &output) {
     UsageSnapshot snap = snapshot(); // Get current snapshot
+    snap.limits.clear(); // IMPORTANT: Clear old limits before adding new ones
+
 
     // Remove ANSI codes
     static QRegularExpression ansiRegex(R"(\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]))");
