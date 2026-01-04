@@ -1,10 +1,9 @@
 [Desktop Entry]
-Name=CodexBar
-Comment=AI Provider Status Bar
-Exec=codexbar
-Icon=codexbar
+Name=KDECodexBar
+Comment=AI Usage Tracker
+Exec=kdecodexbar
+Icon=kdecodexbar
 Type=Application
 Categories=Utility;Development;
 StartupNotify=false
-NoDisplay=true
-X-KDE-autostart-phase=2
+Terminal=false

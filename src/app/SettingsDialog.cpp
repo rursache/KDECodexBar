@@ -86,7 +86,7 @@ void SettingsDialog::updateAutostart(bool enable) {
     QDir dir(autostartDir);
     if (!dir.exists()) dir.mkpath(".");
 
-    QString desktopFile = autostartDir + "/codexbar.desktop";
+    QString desktopFile = autostartDir + "/kdecodexbar.desktop";
 
     if (enable) {
         QFile file(desktopFile);
@@ -96,7 +96,7 @@ void SettingsDialog::updateAutostart(bool enable) {
             out << "Type=Application\n";
             out << "Name=KDECodexBar\n";
             out << "Exec=" << QCoreApplication::applicationFilePath() << "\n";
-            out << "Icon=codexbar\n"; // Assume icon exists or let it fallback
+            out << "Icon=kdecodexbar\n"; // Assume icon exists or let it fallback
             out << "Comment=AI Usage Tracker\n";
             out << "X-GNOME-Autostart-enabled=true\n";
             out << "Terminal=false\n";
