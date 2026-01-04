@@ -82,15 +82,20 @@ void TrayIcon::updateIcon() {
         // For now, just fix the compile error by removing old specific action updates if they are not reliable.
     }
     // Tooltip
-    QString tooltip = "<b>CodexBar</b>";
+    // Tooltip
+    // Use HTML formatting for reliable control over lines
+    QString tooltip;
     
     for (const auto &provider : m_registry->providers()) {
         if (provider->state() == ProviderState::Active) {
             UsageSnapshot snap = provider->snapshot();
-            tooltip += QString("%1:\n").arg(provider->name());
+            if (snap.limits.isEmpty()) continue;
+
+            if (!tooltip.isEmpty()) tooltip += "<br>";
+            tooltip += QString("<b>%1</b>").arg(provider->name());
             
             for (const auto &limit : snap.limits) {
-                  tooltip += QString("  %1: %2%\n")
+                  tooltip += QString("<br>&nbsp;&nbsp;%1: %2%")
                     .arg(limit.label)
                     .arg(limit.percent(), 0, 'f', 1);
             }
@@ -99,11 +104,10 @@ void TrayIcon::updateIcon() {
     
     if (tooltip.isEmpty()) {
         tooltip = "No usage data";
-    } else {
-        tooltip.chop(1);
     }
     
-    m_sni->setToolTip(QIcon(), "CodexBar", tooltip);
+    // Use a descriptive title instead of App Name to ensure visibility and avoid duplication
+    m_sni->setToolTip(QIcon(), "Usage Metrics", tooltip);
     
     // Refresh the menu actions to reflect new data
     setupMenu();
