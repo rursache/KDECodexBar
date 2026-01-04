@@ -1,0 +1,24 @@
+# Maintainer: Your Name <your.email@example.com>
+pkgname=kdecodexbar
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="AI Usage Tracker for KDE Plasma (Codex, Claude, Gemini, Antigravity)"
+arch=('x86_64')
+url="https://github.com/steipete/CodexBar"
+license=('MIT')
+depends=('qt6-base' 'kstatusnotifieritem' 'kcoreaddons' 'kconfig' 'ki18n' 'kwindowsystem')
+makedepends=('cmake' 'extra-cmake-modules' 'qt6-tools' 'git')
+source=("dir://${srcdir}/../../..") # Uses the local directory for now, change to git url for release
+sha256sums=('SKIP')
+
+build() {
+    cmake -B build -S "${srcdir}/../../.." \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr
+    cmake --build build
+}
+
+package() {
+    DESTDIR="$pkgdir" cmake --install build
+    install -D -m644 "${srcdir}/../../../LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
