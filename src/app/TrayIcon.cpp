@@ -112,9 +112,14 @@ void TrayIcon::setupMenu() {
 
     for (const auto &provider : m_registry->providers()) {
         // Section Header (Selectable)
-        QAction *header = m_menu->addAction(provider->name());
-        header->setCheckable(true);
-        header->setChecked(provider->id() == m_selectedProviderID);
+        bool isSelected = (provider->id() == m_selectedProviderID);
+        // Use text-based indicator to control spacing (native checkbox has large gap)
+        QString label = isSelected ? QStringLiteral("✓ %1").arg(provider->name()) 
+                                   : QStringLiteral("   %1").arg(provider->name());
+        
+        QAction *header = m_menu->addAction(label);
+        // header->setCheckable(true); // Disable native check
+        // header->setChecked(isSelected);
         
         QFont font = header->font();
         font.setBold(true);
@@ -129,11 +134,12 @@ void TrayIcon::setupMenu() {
         UsageSnapshot snap = provider->snapshot();
         // Dynamic stats
         if (snap.limits.isEmpty()) {
-             QAction *act = m_menu->addAction("  No usage data");
+             QAction *act = m_menu->addAction("     No usage data");
              act->setEnabled(false);
         } else {
              for (const auto &limit : snap.limits) {
-                 QString text = QString("  %1: %2%").arg(limit.label).arg(limit.percent(), 0, 'f', 1);
+                 // Indent sub-items to align with text (3 spaces for indicator + 2 for nesting)
+                 QString text = QString("     %1: %2%").arg(limit.label).arg(limit.percent(), 0, 'f', 1);
                  
                  // Append reset info if available
                  if (!limit.resetDescription.isEmpty()) {
