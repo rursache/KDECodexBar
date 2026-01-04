@@ -12,9 +12,9 @@
 
 SettingsDialog::SettingsDialog(QWidget *parent)
     : QDialog(parent)
-    , m_settings("CodexBar", "CodexBar")
+    , m_settings("KDECodexBar", "KDECodexBar")
 {
-    setWindowTitle(tr("CodexBar Settings"));
+    setWindowTitle(tr("KDECodexBar Settings"));
     setFixedSize(300, 200);
 
     QVBoxLayout *layout = new QVBoxLayout(this);
@@ -94,7 +94,7 @@ void SettingsDialog::updateAutostart(bool enable) {
             QTextStream out(&file);
             out << "[Desktop Entry]\n";
             out << "Type=Application\n";
-            out << "Name=CodexBar\n";
+            out << "Name=KDECodexBar\n";
             out << "Exec=" << QCoreApplication::applicationFilePath() << "\n";
             out << "Icon=codexbar\n"; // Assume icon exists or let it fallback
             out << "Comment=AI Usage Tracker\n";

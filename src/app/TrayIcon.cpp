@@ -52,7 +52,7 @@ TrayIcon::TrayIcon(ProviderRegistry *registry, QObject *parent)
     QTimer::singleShot(0, this, [this](){
         // Create settings dialog to load initial settings (or just use QSettings directly here)
         // Since we want to respect the saved interval, we should read it properly.
-        QSettings s("CodexBar", "CodexBar");
+        QSettings s("KDECodexBar", "KDECodexBar");
         int interval = s.value("refresh_interval", 60000).toInt();
         if (interval > 0) m_timer->start(interval);
         else m_timer->stop();
@@ -99,8 +99,8 @@ void TrayIcon::updateIcon() {
     }
 
     // Use a descriptive title instead of App Name to ensure visibility and avoid duplication
-    // User requested "CodexBar" as title
-    m_sni->setToolTip(QIcon(), "CodexBar", tooltip);
+    // User requested "CodexBar" as title -> "KDECodexBar"
+    m_sni->setToolTip(QIcon(), "KDECodexBar", tooltip);
     
     // Refresh the menu actions (stats might have changed)
     setupMenu();
@@ -110,7 +110,7 @@ void TrayIcon::setupMenu() {
     m_menu->clear();
 
     // App Name
-    auto *title = m_menu->addAction("CodexBar");
+    auto *title = m_menu->addAction("KDECodexBar");
     title->setEnabled(false);
     m_menu->addSeparator();
 

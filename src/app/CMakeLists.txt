@@ -1,6 +1,6 @@
-add_executable(codexbar)
+add_executable(kdecodexbar)
 
-target_sources(codexbar PRIVATE
+target_sources(kdecodexbar PRIVATE
     main.cpp
     TrayIcon.cpp
     IconRenderer.cpp
@@ -8,8 +8,8 @@ target_sources(codexbar PRIVATE
     MenuWidget.cpp
 )
 
-target_link_libraries(codexbar PRIVATE
-    codexbar-core
+target_link_libraries(kdecodexbar PRIVATE
+    kdecodexbar-core
     Qt6::Widgets
     KF6::StatusNotifierItem
     KF6::CoreAddons
@@ -17,5 +17,7 @@ target_link_libraries(codexbar PRIVATE
     KF6::I18n
 )
 
-install(TARGETS codexbar ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
-install(FILES ${CMAKE_SOURCE_DIR}/resources/codexbar.desktop DESTINATION ${KDE_INSTALL_APPDIR})
+target_include_directories(kdecodexbar PRIVATE ${CMAKE_SOURCE_DIR}/src/core)
+
+install(TARGETS kdecodexbar ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
+install(FILES ${CMAKE_SOURCE_DIR}/resources/codexbar.desktop DESTINATION ${KDE_INSTALL_APPDIR} RENAME kdecodexbar.desktop)

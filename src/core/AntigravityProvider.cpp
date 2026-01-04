@@ -300,8 +300,8 @@ void AntigravityProvider::onUserStatusReply(QNetworkReply *reply) {
         }
     };
     
-    addLimit(findModel("claude", "thinking"), "Claude");
     addLimit(findModel("pro", "low"), "Pro"); // "Gemini Pro Low" -> "Pro"
+    addLimit(findModel("claude", "thinking"), "Claude");
     addLimit(findModel("flash"), "Flash");
     
     setSnapshot(snap);
