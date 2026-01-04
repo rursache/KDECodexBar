@@ -15,6 +15,7 @@ TrayIcon::TrayIcon(ProviderRegistry *registry, QObject *parent)
     , m_menu(new QMenu())
     , m_registry(registry)
     , m_timer(new QTimer(this))
+    , m_selectedProviderID(ProviderID::Codex)
 {
     // Basic SNI setup
     m_sni->setCategory(KStatusNotifierItem::ApplicationStatus);
@@ -38,10 +39,7 @@ TrayIcon::TrayIcon(ProviderRegistry *registry, QObject *parent)
         connect(provider, &Provider::dataChanged, this, &TrayIcon::updateIcon);
     }
     
-    // Setup refresh timer (every 10 minutes, plus initial)
-    // For specific providers like Codex, we might want faster polling or event driven?
-    // macOS uses 5s or similar for active checks? 
-    // Let's use 60s for now, and trigger immediate.
+    // Setup refresh timer (every 60s)
     connect(m_timer, &QTimer::timeout, this, [this](){
         for (auto *provider : m_registry->providers()) {
             provider->refresh();
@@ -58,58 +56,49 @@ TrayIcon::TrayIcon(ProviderRegistry *registry, QObject *parent)
 }
 
 void TrayIcon::updateIcon() {
-    QStringList tooltipLines;
-    tooltipLines << "codexbar"; // Fallback title
+    // 1. Icon Update
+    // Only render icon for the selected provider
+    auto *provider = m_registry->provider(m_selectedProviderID);
+    bool iconUpdated = false;
     
-    // 1. Codex
-    auto *codex = m_registry->provider(ProviderID::Codex);
-    if (codex) {
-        auto snap = codex->snapshot();
-        // Use Codex icon if active (TODO: merge or cycle icons?)
-        // For now, Codex wins for the icon.
+    if (provider && provider->state() == ProviderState::Active) {
+        auto snap = provider->snapshot();
         if (!snap.limits.isEmpty()) {
              m_sni->setIconByPixmap(IconRenderer::renderIcon(snap, false));
+             iconUpdated = true;
         }
-
-        // Action text updates handled by menu setup mostly, but if we have persistent actions:
-        // Note: In new dynamic menu, we rebuild menu on showing or we should update actions dynamically.
-        // For now, let's assumes updateIcon just updates the SNI icon and tooltip.
-        // Actions in the menu are static pointers m_codexSessionAction which we should probably remove or update differently.
-        // Since we switched to loop-based setupMenu, we don't have m_codexSessionAction handy unless we map them.
-        // Let's rely on setupMenu being called or refreshing the menu logic? 
-        // Actually setupMenu clears the menu. So actions are recreated.
-        // But KStatusNotifierItem menu might need explicit update if it's open.
-        // For now, just fix the compile error by removing old specific action updates if they are not reliable.
     }
-    // Tooltip
-    // Tooltip
-    // Use HTML formatting for reliable control over lines
+    
+    if (!iconUpdated) {
+        // Fallback or keep previous? simpler to just placeholder if empty/inactive
+        // m_sni->setIconByPixmap(IconRenderer::renderPlaceholder());
+    }
+
+    // 2. Tooltip Update
+    // Only show selected provider in tooltip
     QString tooltip;
     
-    for (const auto &provider : m_registry->providers()) {
-        if (provider->state() == ProviderState::Active) {
-            UsageSnapshot snap = provider->snapshot();
-            if (snap.limits.isEmpty()) continue;
-
-            if (!tooltip.isEmpty()) tooltip += "<br>";
+    if (provider && provider->state() == ProviderState::Active) {
+         UsageSnapshot snap = provider->snapshot();
+         if (!snap.limits.isEmpty()) {
             tooltip += QString("<b>%1</b>").arg(provider->name());
-            
             for (const auto &limit : snap.limits) {
                   tooltip += QString("<br>&nbsp;&nbsp;%1: %2%")
                     .arg(limit.label)
                     .arg(limit.percent(), 0, 'f', 1);
             }
-        }
+         }
     }
-    
+
     if (tooltip.isEmpty()) {
         tooltip = "No usage data";
     }
     
-    // Use a descriptive title instead of App Name to ensure visibility and avoid duplication
-    m_sni->setToolTip(QIcon(), "Usage Metrics", tooltip);
+    // Title reflects selected provider
+    QString title = provider ? provider->name() : "CodexBar";
+    m_sni->setToolTip(QIcon(), title, tooltip);
     
-    // Refresh the menu actions to reflect new data
+    // Refresh the menu actions (stats might have changed)
     setupMenu();
 }
 
@@ -122,13 +111,20 @@ void TrayIcon::setupMenu() {
     m_menu->addSeparator();
 
     for (const auto &provider : m_registry->providers()) {
-        // Section Header
+        // Section Header (Selectable)
         QAction *header = m_menu->addAction(provider->name());
-        header->setEnabled(false);
+        header->setCheckable(true);
+        header->setChecked(provider->id() == m_selectedProviderID);
         
         QFont font = header->font();
         font.setBold(true);
         header->setFont(font);
+        
+        // Handle selection
+        connect(header, &QAction::triggered, this, [this, provider](){
+            m_selectedProviderID = provider->id();
+            updateIcon(); // Will redraw icon/tooltip and rebuild menu (updating checks)
+        });
 
         UsageSnapshot snap = provider->snapshot();
         // Dynamic stats

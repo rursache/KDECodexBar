@@ -32,4 +32,5 @@ private:
     QAction *m_claudeWeeklyAction;
     ProviderRegistry *m_registry;
     QTimer *m_timer;
+    ProviderID m_selectedProviderID;
 };
