@@ -1,0 +1,9 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/radu/Downloads/CodexBar/Linux_v2/build/cmake_install.cmake",
+		"/home/radu/Downloads/CodexBar/Linux_v2/build/src/core/cmake_install.cmake",
+		"/home/radu/Downloads/CodexBar/Linux_v2/build/src/app/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

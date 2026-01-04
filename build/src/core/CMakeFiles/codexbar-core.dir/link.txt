@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcodexbar-core.a "CMakeFiles/codexbar-core.dir/codexbar-core_autogen/mocs_compilation.cpp.o" "CMakeFiles/codexbar-core.dir/Provider.cpp.o" "CMakeFiles/codexbar-core.dir/ProviderRegistry.cpp.o" "CMakeFiles/codexbar-core.dir/CodexProvider.cpp.o"
+/usr/bin/ranlib libcodexbar-core.a

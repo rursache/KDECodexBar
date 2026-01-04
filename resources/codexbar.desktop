@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=CodexBar
+Comment=AI Provider Status Bar
+Exec=codexbar
+Icon=codexbar
+Type=Application
+Categories=Utility;Development;
+StartupNotify=false
+NoDisplay=true
+X-KDE-autostart-phase=2
