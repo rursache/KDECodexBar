@@ -65,8 +65,8 @@ void TrayIcon::updateIcon() {
         if (snap.session.total > 0) {
             m_sni->setIconByPixmap(IconRenderer::renderIcon(snap, false));
             
-            // Update widget
-            m_menuWidget->updateData(codex->name(), snap);
+            // Update widget (disabled for now as per requested menu layout)
+            // m_menuWidget->updateData(codex->name(), snap);
 
             // Update tooltip
             QString title = QString("%1 Usage").arg(codex->name());
@@ -74,20 +74,38 @@ void TrayIcon::updateIcon() {
                 .arg(snap.session.percent(), 0, 'f', 1)
                 .arg(snap.weekly.percent(), 0, 'f', 1);
             m_sni->setToolTip("codexbar", title, tip);
+
+            // Update menu actions
+            // Use indentation as requested
+            if (m_sessionAction) m_sessionAction->setText(QString("   Session: %1%").arg(snap.session.percent(), 0, 'f', 1));
+            if (m_weeklyAction) m_weeklyAction->setText(QString("   Weekly: %1%").arg(snap.weekly.percent(), 0, 'f', 1));
         }
     }
 }
 
 void TrayIcon::setupMenu() {
-    // Use MenuWidget
-    m_menuWidget = new MenuWidget();
-    m_menuAction = new QWidgetAction(m_menu);
-    m_menuAction->setDefaultWidget(m_menuWidget);
-    m_menu->addAction(m_menuAction);
+    // 1. App Name
+    auto *title = m_menu->addAction("CodexBar");
+    title->setEnabled(false); // Header style
+    
+    m_menu->addSeparator();
+
+    // 2. Codex Section
+    auto *codexHeader = m_menu->addAction("Codex");
+    codexHeader->setEnabled(false);
+
+    m_sessionAction = m_menu->addAction("   Session: --%");
+    m_sessionAction->setEnabled(false);
+    
+    m_weeklyAction = m_menu->addAction("   Weekly: --%");
+    m_weeklyAction->setEnabled(false);
     
     m_menu->addSeparator();
     
-    // Placeholder actions
+    // 3. Settings & Refresh
+    auto *settings = m_menu->addAction(i18n("Settings"));
+    settings->setEnabled(false); // Does nothing for now
+    
     m_menu->addAction(i18n("Refresh All"), this, [this](){
         for (auto *provider : m_registry->providers()) {
             provider->refresh();
@@ -96,6 +114,7 @@ void TrayIcon::setupMenu() {
     
     m_menu->addSeparator();
 
+    // 4. Quit
     auto quitAction = m_menu->addAction(QIcon::fromTheme("application-exit"), i18n("Quit"));
     connect(quitAction, &QAction::triggered, qApp, &QCoreApplication::quit);
 }

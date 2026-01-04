@@ -26,6 +26,8 @@ private:
     QMenu *m_menu;
     MenuWidget *m_menuWidget;
     QWidgetAction *m_menuAction;
+    QAction *m_sessionAction; // Textual entries
+    QAction *m_weeklyAction;
     ProviderRegistry *m_registry;
     QTimer *m_timer;
 };
