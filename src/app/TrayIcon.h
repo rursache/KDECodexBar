@@ -7,6 +7,7 @@
 #include <QTimer>
 #include "ProviderRegistry.h"
 #include "MenuWidget.h"
+#include "SettingsDialog.h"
 
 class QMenu;
 class QWidgetAction;
@@ -33,4 +34,7 @@ private:
     ProviderRegistry *m_registry;
     QTimer *m_timer;
     ProviderID m_selectedProviderID;
+    SettingsDialog *m_settingsDialog = nullptr;
+    
+    void applySettings();
 };

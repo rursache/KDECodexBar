@@ -4,6 +4,7 @@ target_sources(codexbar PRIVATE
     main.cpp
     TrayIcon.cpp
     IconRenderer.cpp
+    SettingsDialog.cpp
     MenuWidget.cpp
 )
 

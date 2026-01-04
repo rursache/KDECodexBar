@@ -8,6 +8,7 @@
 #include <QCoreApplication>
 #include "ProviderRegistry.h"
 #include "Provider.h"
+#include <QSettings>
 
 TrayIcon::TrayIcon(ProviderRegistry *registry, QObject *parent)
     : QObject(parent)
@@ -49,6 +50,13 @@ TrayIcon::TrayIcon(ProviderRegistry *registry, QObject *parent)
     
     // Initial refresh
     QTimer::singleShot(0, this, [this](){
+        // Create settings dialog to load initial settings (or just use QSettings directly here)
+        // Since we want to respect the saved interval, we should read it properly.
+        QSettings s("CodexBar", "CodexBar");
+        int interval = s.value("refresh_interval", 60000).toInt();
+        if (interval > 0) m_timer->start(interval);
+        else m_timer->stop();
+
         for (auto *provider : m_registry->providers()) {
             provider->refresh();
         }
@@ -90,13 +98,9 @@ void TrayIcon::updateIcon() {
          }
     }
 
-    if (tooltip.isEmpty()) {
-        tooltip = "No usage data";
-    }
-    
-    // Title reflects selected provider
-    QString title = provider ? provider->name() : "CodexBar";
-    m_sni->setToolTip(QIcon(), title, tooltip);
+    // Use a descriptive title instead of App Name to ensure visibility and avoid duplication
+    // User requested "CodexBar" as title
+    m_sni->setToolTip(QIcon(), "CodexBar", tooltip);
     
     // Refresh the menu actions (stats might have changed)
     setupMenu();
@@ -113,13 +117,11 @@ void TrayIcon::setupMenu() {
     for (const auto &provider : m_registry->providers()) {
         // Section Header (Selectable)
         bool isSelected = (provider->id() == m_selectedProviderID);
-        // Use text-based indicator to control spacing (native checkbox has large gap)
+        // Use text-based indicator to control spacing
         QString label = isSelected ? QStringLiteral("✓ %1").arg(provider->name()) 
                                    : QStringLiteral("   %1").arg(provider->name());
         
         QAction *header = m_menu->addAction(label);
-        // header->setCheckable(true); // Disable native check
-        // header->setChecked(isSelected);
         
         QFont font = header->font();
         font.setBold(true);
@@ -138,7 +140,6 @@ void TrayIcon::setupMenu() {
              act->setEnabled(false);
         } else {
              for (const auto &limit : snap.limits) {
-                 // Indent sub-items to align with text (3 spaces for indicator + 2 for nesting)
                  QString text = QString("     %1: %2%").arg(limit.label).arg(limit.percent(), 0, 'f', 1);
                  
                  // Append reset info if available
@@ -156,7 +157,17 @@ void TrayIcon::setupMenu() {
     
     // Settings & Refresh
     auto *settings = m_menu->addAction(i18n("Settings"));
-    settings->setEnabled(false); // Does nothing for now
+    connect(settings, &QAction::triggered, this, [this](){
+        if (!m_settingsDialog) {
+            m_settingsDialog = new SettingsDialog(); // Create lazily or pass parent
+            // Since TrayIcon is a QObject not QWidget, careful with parent logic for dialogs.
+            // But we can just show it.
+            connect(m_settingsDialog, &SettingsDialog::settingsChanged, this, &TrayIcon::applySettings);
+        }
+        m_settingsDialog->show();
+        m_settingsDialog->raise();
+        m_settingsDialog->activateWindow();
+    });
     
     m_menu->addAction(i18n("Refresh All"), this, [this](){
         for (auto *provider : m_registry->providers()) {
@@ -169,4 +180,15 @@ void TrayIcon::setupMenu() {
     // 4. Quit
     auto quitAction = m_menu->addAction(QIcon::fromTheme("application-exit"), i18n("Quit"));
     connect(quitAction, &QAction::triggered, qApp, &QCoreApplication::quit);
+}
+
+void TrayIcon::applySettings() {
+    if (!m_settingsDialog) return;
+    
+    int interval = m_settingsDialog->refreshInterval();
+    if (interval > 0) {
+        m_timer->start(interval);
+    } else {
+        m_timer->stop();
+    }
 }
