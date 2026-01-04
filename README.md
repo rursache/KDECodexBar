@@ -1,6 +1,8 @@
 # KDECodexBar
 
-**KDECodexBar** is a native system tray application for **KDE Plasma** that tracks your usage limits for various AI providers (Codex, Claude, Gemini, Antigravity). It is designed to sit quietly in your tray, providing quick access to usage statistics and managing your AI workflow efficiency.
+**KDECodexBar** is a native Linux/KDE port of **[CodexBar](https://github.com/steipete/CodexBar)** by **[Peter Steinberger (@steipete)](https://github.com/steipete)**.
+
+It tracks your usage limits for various AI providers (Codex, Claude, Gemini, Antigravity) directly from your system tray.
 
 ## Features
 
@@ -71,6 +73,4 @@ This will install the binary and the `.desktop` file, allowing you to launch it 
 ## License
 MIT
 
-## Acknowledgements
-Based on [CodexBar for macOS](https://github.com/steipete/CodexBar) by **Peter Steinberger** (@steipete).
-This project brings the same functionality to the Linux desktop environment.
+
