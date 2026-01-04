@@ -7,6 +7,7 @@ ClaudeProvider::ClaudeProvider(QObject *parent)
     : Provider(ProviderID::Claude, parent)
     , m_session(nullptr)
     , m_fetching(false)
+    , m_confirmationSent(false)
 {
 }
 
@@ -22,6 +23,7 @@ void ClaudeProvider::refresh() {
     }
 
     m_fetching = true;
+    m_confirmationSent = false;
     m_buffer.clear();
     cleanup();
 
@@ -41,8 +43,15 @@ void ClaudeProvider::onPtyData(const QByteArray &data) {
     m_buffer.append(QString::fromUtf8(data));
     
     // Auto-send /usage if we see a prompt
+    // Use \r because interactive CLI might expect CR
     if (!m_buffer.contains("/usage") && (m_buffer.contains("Ready to code") || m_buffer.contains(">"))) {
-         m_session->write("/usage\n");
+         m_session->write("/usage\r");
+    }
+
+    // If we see the autocomplete menu but no result yet, press Enter again
+    if (!m_confirmationSent && m_buffer.contains("Show plan usage limits") && !m_buffer.contains("Current session")) {
+        m_session->write("\r");
+        m_confirmationSent = true;
     }
 
     parseOutput(m_buffer);
@@ -62,44 +71,63 @@ void ClaudeProvider::cleanup() {
     }
 }
 
+// Helper to extract percent from a specific block
+double extractPercent(const QStringList &lines, const QString &label) {
+    // Find label
+    int startIdx = -1;
+    for (int i = 0; i < lines.size(); ++i) {
+        if (lines[i].contains(label, Qt::CaseInsensitive)) {
+            startIdx = i;
+            break;
+        }
+    }
+    if (startIdx == -1) return -1.0;
+
+    // Scan next 15 lines
+    static QRegularExpression pctRegex(R"((\d{1,3})\s*%\s*(used|left))", QRegularExpression::CaseInsensitiveOption);
+    
+    for (int i = startIdx; i < qMin(startIdx + 15, lines.size()); ++i) {
+        auto match = pctRegex.match(lines[i]);
+        if (match.hasMatch()) {
+            double val = match.captured(1).toDouble();
+            QString type = match.captured(2).toLower();
+            if (type == "used") {
+                return val;
+            } else {
+                return 100.0 - val;
+            }
+        }
+    }
+    return -1.0;
+}
+
 void ClaudeProvider::parseOutput(const QString &output) {
-    bool found = false;
     UsageSnapshot snap = snapshot(); // Get current snapshot
 
     // Remove ANSI codes
-    static QRegularExpression ansiRegex(R"(\x1B\[[0-9;]*[a-zA-Z])");
+    static QRegularExpression ansiRegex(R"(\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]))");
     QString clean = output;
     clean.remove(ansiRegex);
+    
+    // qDebug().noquote() << clean; // Uncomment for debugging
+    
+    QStringList lines = clean.split('\n');
+
+    bool found = false;
 
     // Extract Session
-    static QRegularExpression sessionRegex(R"(Current session\s+(\d+)%\s+(used|left))", QRegularExpression::CaseInsensitiveOption);
-    auto match = sessionRegex.match(clean);
-    if (match.hasMatch()) {
-        double val = match.captured(1).toDouble();
-        QString type = match.captured(2).toLower();
-        if (type == "used") {
-            snap.session.used = val;
-            snap.session.total = 100.0;
-        } else {
-            snap.session.used = 100.0 - val;
-            snap.session.total = 100.0;
-        }
+    double sessionVal = extractPercent(lines, "Current session");
+    if (sessionVal >= 0) {
+        snap.session.used = sessionVal;
+        snap.session.total = 100.0;
         found = true;
     }
 
     // Extract Weekly
-    static QRegularExpression weeklyRegex(R"(Current week\s+\(all models\)\s+(\d+)%\s+(used|left))", QRegularExpression::CaseInsensitiveOption);
-    auto weeklyMatch = weeklyRegex.match(clean);
-    if (weeklyMatch.hasMatch()) {
-        double val = weeklyMatch.captured(1).toDouble();
-        QString type = weeklyMatch.captured(2).toLower();
-        if (type == "used") {
-            snap.weekly.used = val;
-            snap.weekly.total = 100.0;
-        } else {
-            snap.weekly.used = 100.0 - val;
-            snap.weekly.total = 100.0;
-        }
+    double weeklyVal = extractPercent(lines, "Current week");
+    if (weeklyVal >= 0) {
+        snap.weekly.used = weeklyVal;
+        snap.weekly.total = 100.0;
         found = true;
     }
 

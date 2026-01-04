@@ -22,4 +22,5 @@ private:
     PtySession *m_session;
     QString m_buffer;
     bool m_fetching;
+    bool m_confirmationSent;
 };
