@@ -181,24 +181,25 @@ void GeminiProvider::onQuotaReply(QNetworkReply *reply) {
     }
     
     // Filter for targets
-    QStringList targets = {"gemini-2.5-flash", "gemini-2.5-pro"};
+    // User requested Pro first, then Flash
+    QStringList targets = {"gemini-2.5-pro", "gemini-2.5-flash"};
     
     for (const QString &target : targets) {
+        UsageLimit limit;
+        if (target.contains("flash")) limit.label = "Flash";
+        else if (target.contains("pro")) limit.label = "Pro";
+        else limit.label = target;
+        
+        limit.total = 100.0;
+        limit.resetDescription = ""; 
+
         if (modelUsage.contains(target)) {
-            UsageLimit limit;
-            // Label: "Flash", "Pro" etc
-            if (target.contains("flash")) limit.label = "Flash";
-            else if (target.contains("pro")) limit.label = "Pro";
-            else limit.label = target;
-            
             limit.used = modelUsage[target].usedPct;
-            limit.total = 100.0;
-            
-            // Simple reset desc parsing if needed, but for now empty is fine
-            limit.resetDescription = ""; 
-            
-            snap.limits.append(limit);
+        } else {
+            // Force include even if 0 usage / empty response
+            limit.used = 0.0;
         }
+        snap.limits.append(limit);
     }
     
     setSnapshot(snap);
