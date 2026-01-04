@@ -1,7 +1,9 @@
 #include "ProviderRegistry.h"
 #include "CodexProvider.h"
 #include "ClaudeProvider.h"
+#include "ClaudeProvider.h"
 #include "GeminiProvider.h"
+#include "AntigravityProvider.h"
 
 ProviderRegistry::ProviderRegistry(QObject *parent) : QObject(parent)
 {
@@ -14,6 +16,9 @@ ProviderRegistry::ProviderRegistry(QObject *parent) : QObject(parent)
     
     // 3. Gemini
     registerProvider(new GeminiProvider(this));
+
+    // 4. Antigravity
+    registerProvider(new AntigravityProvider(this));
 }
 
 void ProviderRegistry::registerProvider(Provider *provider) {

@@ -6,6 +6,7 @@ target_sources(codexbar-core PRIVATE
     CodexProvider.cpp
     ClaudeProvider.cpp
     GeminiProvider.cpp
+    AntigravityProvider.cpp
     PtySession.cpp
 )
 
