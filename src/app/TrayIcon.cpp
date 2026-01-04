@@ -6,6 +6,8 @@
 #include <QIcon>
 #include <QApplication>
 #include <QCoreApplication>
+#include "ProviderRegistry.h"
+#include "Provider.h"
 
 TrayIcon::TrayIcon(ProviderRegistry *registry, QObject *parent)
     : QObject(parent)
@@ -65,71 +67,88 @@ void TrayIcon::updateIcon() {
         auto snap = codex->snapshot();
         // Use Codex icon if active (TODO: merge or cycle icons?)
         // For now, Codex wins for the icon.
-        if (snap.session.total > 0) {
+        if (!snap.limits.isEmpty()) {
              m_sni->setIconByPixmap(IconRenderer::renderIcon(snap, false));
         }
 
-        if (m_codexSessionAction) m_codexSessionAction->setText(QString("   Session: %1%").arg(snap.session.percent(), 0, 'f', 1));
-        if (m_codexWeeklyAction) m_codexWeeklyAction->setText(QString("   Weekly: %1%").arg(snap.weekly.percent(), 0, 'f', 1));
-        
-        tooltipLines.clear();
-        tooltipLines << QString("<b>%1 Usage</b>").arg(codex->name());
-        tooltipLines << QString("Session: %1%").arg(snap.session.percent(), 0, 'f', 1);
-        tooltipLines << QString("Weekly: %1%").arg(snap.weekly.percent(), 0, 'f', 1);
+        // Action text updates handled by menu setup mostly, but if we have persistent actions:
+        // Note: In new dynamic menu, we rebuild menu on showing or we should update actions dynamically.
+        // For now, let's assumes updateIcon just updates the SNI icon and tooltip.
+        // Actions in the menu are static pointers m_codexSessionAction which we should probably remove or update differently.
+        // Since we switched to loop-based setupMenu, we don't have m_codexSessionAction handy unless we map them.
+        // Let's rely on setupMenu being called or refreshing the menu logic? 
+        // Actually setupMenu clears the menu. So actions are recreated.
+        // But KStatusNotifierItem menu might need explicit update if it's open.
+        // For now, just fix the compile error by removing old specific action updates if they are not reliable.
     }
-
-    // 2. Claude
-    auto *claude = m_registry->provider(ProviderID::Claude);
-    if (claude) {
-        auto snap = claude->snapshot();
-        
-        if (m_claudeSessionAction) m_claudeSessionAction->setText(QString("   Session: %1%").arg(snap.session.percent(), 0, 'f', 1));
-        if (m_claudeWeeklyAction) m_claudeWeeklyAction->setText(QString("   Weekly: %1%").arg(snap.weekly.percent(), 0, 'f', 1));
-
-        if (!tooltipLines.isEmpty()) tooltipLines << ""; // spacer
-        tooltipLines << QString("<b>%1 Usage</b>").arg(claude->name());
-        tooltipLines << QString("Session: %1%").arg(snap.session.percent(), 0, 'f', 1);
-        tooltipLines << QString("Weekly: %1%").arg(snap.weekly.percent(), 0, 'f', 1);
+    // Tooltip
+    QString tooltip = "<b>CodexBar</b>";
+    
+    for (const auto &provider : m_registry->providers()) {
+        if (provider->state() == ProviderState::Active) {
+            UsageSnapshot snap = provider->snapshot();
+            tooltip += QString("%1:\n").arg(provider->name());
+            
+            for (const auto &limit : snap.limits) {
+                  tooltip += QString("  %1: %2%\n")
+                    .arg(limit.label)
+                    .arg(limit.percent(), 0, 'f', 1);
+            }
+        }
     }
     
-    // Set Tooltip
-    // KStatusNotifierItem setToolTip(iconName, title, subTitle)
-    // We can put the whole multiline string in subTitle?
-    // Title: CodexBar
-    // Subtitle: The list.
-    m_sni->setToolTip("codexbar", "CodexBar", tooltipLines.join("\n"));
+    if (tooltip.isEmpty()) {
+        tooltip = "No usage data";
+    } else {
+        tooltip.chop(1);
+    }
+    
+    m_sni->setToolTip(QIcon(), "CodexBar", tooltip);
+    
+    // Refresh the menu actions to reflect new data
+    setupMenu();
 }
 
 void TrayIcon::setupMenu() {
-    // 1. App Name
+    m_menu->clear();
+
+    // App Name
     auto *title = m_menu->addAction("CodexBar");
     title->setEnabled(false);
-    
     m_menu->addSeparator();
 
-    // 2. Codex Section
-    auto *codexHeader = m_menu->addAction("Codex");
-    codexHeader->setEnabled(false);
+    for (const auto &provider : m_registry->providers()) {
+        // Section Header
+        QAction *header = m_menu->addAction(provider->name());
+        header->setEnabled(false);
+        
+        QFont font = header->font();
+        font.setBold(true);
+        header->setFont(font);
 
-    m_codexSessionAction = m_menu->addAction("   Session: --%");
-    m_codexSessionAction->setEnabled(false);
-    
-    m_codexWeeklyAction = m_menu->addAction("   Weekly: --%");
-    m_codexWeeklyAction->setEnabled(false);
-    
-    // 3. Claude Section
-    auto *claudeHeader = m_menu->addAction("Claude");
-    claudeHeader->setEnabled(false);
+        UsageSnapshot snap = provider->snapshot();
+        // Dynamic stats
+        if (snap.limits.isEmpty()) {
+             QAction *act = m_menu->addAction("  No usage data");
+             act->setEnabled(false);
+        } else {
+             for (const auto &limit : snap.limits) {
+                 QString text = QString("  %1: %2%").arg(limit.label).arg(limit.percent(), 0, 'f', 1);
+                 
+                 // Append reset info if available
+                 if (!limit.resetDescription.isEmpty()) {
+                     text += QString(" (%1)").arg(limit.resetDescription);
+                 }
+                 
+                 QAction *act = m_menu->addAction(text);
+                 act->setEnabled(false);
+             }
+        }
 
-    m_claudeSessionAction = m_menu->addAction("   Session: --%");
-    m_claudeSessionAction->setEnabled(false);
+        m_menu->addSeparator();
+    }
     
-    m_claudeWeeklyAction = m_menu->addAction("   Weekly: --%");
-    m_claudeWeeklyAction->setEnabled(false);
-
-    m_menu->addSeparator();
-    
-    // 3. Settings & Refresh
+    // Settings & Refresh
     auto *settings = m_menu->addAction(i18n("Settings"));
     settings->setEnabled(false); // Does nothing for now
     

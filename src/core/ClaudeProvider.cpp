@@ -118,16 +118,22 @@ void ClaudeProvider::parseOutput(const QString &output) {
     // Extract Session
     double sessionVal = extractPercent(lines, "Current session");
     if (sessionVal >= 0) {
-        snap.session.used = sessionVal;
-        snap.session.total = 100.0;
+        UsageLimit limit;
+        limit.label = "Session";
+        limit.used = sessionVal;
+        limit.total = 100.0;
+        snap.limits.append(limit);
         found = true;
     }
 
     // Extract Weekly
     double weeklyVal = extractPercent(lines, "Current week");
     if (weeklyVal >= 0) {
-        snap.weekly.used = weeklyVal;
-        snap.weekly.total = 100.0;
+        UsageLimit limit;
+        limit.label = "Weekly";
+        limit.used = weeklyVal;
+        limit.total = 100.0;
+        snap.limits.append(limit);
         found = true;
     }
 

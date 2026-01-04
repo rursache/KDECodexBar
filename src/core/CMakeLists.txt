@@ -4,8 +4,9 @@ target_sources(codexbar-core PRIVATE
     Provider.cpp
     ProviderRegistry.cpp
     CodexProvider.cpp
-    PtySession.cpp
     ClaudeProvider.cpp
+    GeminiProvider.cpp
+    PtySession.cpp
 )
 
 target_link_libraries(codexbar-core PUBLIC

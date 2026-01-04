@@ -133,22 +133,19 @@ void CodexProvider::handleRpcResult(int id, const QJsonValue &result)
     } else if (id == m_fetchLimitsId) {
         // Parse rate limits
         // Response structure: { rateLimits: { primary: {...}, secondary: {...}, credits: {...} } }
-        QJsonObject resObj = result.toObject();
-        QJsonObject rateLimits = resObj["rateLimits"].toObject();
-        
         UsageSnapshot snapshot;
         snapshot.timestamp = QDateTime::currentDateTime();
         
+        QJsonObject root = result.toObject(); // "result" value passed in
+        QJsonObject rateLimits = root["rateLimits"].toObject();
+        
         // Helper to parse window
-        auto parseWindow = [](const QJsonObject &win) -> UsageLimit {
+        auto parseWindow = [](const QString &label, const QJsonObject &win) -> UsageLimit {
             UsageLimit limit;
+            limit.label = label;
             if (win.isEmpty()) return limit;
             
             double usedPercent = win["usedPercent"].toDouble();
-            // In our model: UsageLimit struct has used/total.
-            // macOS RateWindow has usedPercent directly.
-            // Let's map percent to our simple model.
-            // used = usedPercent, total = 100.
             limit.used = usedPercent;
             limit.total = 100.0; 
             limit.unit = "%";
@@ -156,10 +153,10 @@ void CodexProvider::handleRpcResult(int id, const QJsonValue &result)
             return limit;
         };
         
-        snapshot.session = parseWindow(rateLimits["primary"].toObject());
-        snapshot.weekly = parseWindow(rateLimits["secondary"].toObject());
+        snapshot.limits.append(parseWindow("Session", rateLimits["primary"].toObject()));
+        snapshot.limits.append(parseWindow("Weekly", rateLimits["secondary"].toObject()));
         
-        qDebug() << "CodexProvider: Fetched limits. Session:" << snapshot.session.used << "%";
+        qDebug() << "CodexProvider: Fetched limits. Count:" << snapshot.limits.size();
 
         setSnapshot(snapshot);
         setState(ProviderState::Active);
@@ -168,7 +165,6 @@ void CodexProvider::handleRpcResult(int id, const QJsonValue &result)
         
         // Done for this refresh cycle
         m_process->terminate();
-        // m_process will be cleaned up in onProcessFinished or next refresh
     }
 }
 

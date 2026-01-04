@@ -62,58 +62,43 @@ QIcon IconRenderer::renderIcon(const UsageSnapshot &snapshot, bool isDarkTheme) 
     // Or just draw manually here to ensure placeholder look is distinct if needed.
     // For now, drawing manually as per previous code structure.
     
-    g_drawBar(p, topBar, snapshot.session.percent(), fg);
-    g_drawBar(p, bottomBar, snapshot.weekly.percent(), fg);
+    // Draw up to 2 bars max for icon visibility
+    if (snapshot.limits.size() >= 1) {
+        // Top Bar: First limit (Session / Primary)
+        QRect topBar(leftX, topY, width, 5);
+        g_drawBar(p, topBar, snapshot.limits[0].percent(), fg);
+    }
 
+    if (snapshot.limits.size() >= 2) {
+        // Bottom Bar: Second limit (Weekly / Secondary)
+        QRect bottomBar(leftX, topY + 5 + 2, width, 3);
+        g_drawBar(p, bottomBar, snapshot.limits[1].percent(), fg);
+    }
+    
     QIcon icon;
     icon.addPixmap(pixmap);
     return icon;
 }
 
 QIcon IconRenderer::renderPlaceholder() {
-    // This method is no longer used/needed to be public if renderIcon handles 0 usage? 
-    // But TrayIcon calls it. We should make it call renderIcon with empty snapshot.
-    // Or just duplicate the logic briefly for now to keep it compiling.
-    // Ideally we'd remove renderPlaceholder and just use renderIcon(UsageSnapshot()).
-    // Let's implement it using g_drawBar for consistency.
-    
-    QPixmap pixmap(kIconSize);
-    pixmap.fill(Qt::transparent);
-
-    QPainter p(&pixmap);
-    p.setRenderHint(QPainter::Antialiasing);
-    
-    QColor fg = Qt::white; 
-
-    QRect rect = QRect(QPoint(0, 0), kIconSize);
-    int topY = 6;
-    int leftX = 2;
-    int rightX = 2;
-    int width = rect.width() - leftX - rightX;
-
-    QRect topBar(leftX, topY, width, 5);
-    QRect bottomBar(leftX, topY + 5 + 2, width, 3);
-    
-    g_drawBar(p, topBar, 0.0, fg);
-    g_drawBar(p, bottomBar, 0.0, fg);
-    
-    QIcon icon;
-    icon.addPixmap(pixmap);
-    return icon;
+    UsageSnapshot snap; // Empty snapshot
+    return renderIcon(snap, false);
 }
 
 void IconRenderer::drawBars(QPainter &p, const QRect &rect, const UsageSnapshot &snapshot, const QColor &fg) {
-    // Vertical layout calculation
+    // Shared logic with renderIcon could be refactored, but needed here for QPainter-based drawing if used by MenuWidget
     int topY = 6;
     int leftX = 2;
     int rightX = 2;
     int width = rect.width() - leftX - rightX;
 
-    // Top Bar
-    QRect topBar(leftX, topY, width, 5);
-    g_drawBar(p, topBar, snapshot.session.percent(), fg);
-
-    // Bottom Bar
-    QRect bottomBar(leftX, topY + 5 + 2, width, 3);
-    g_drawBar(p, bottomBar, snapshot.weekly.percent(), fg);
+    if (snapshot.limits.size() >= 1) {
+        QRect topBar(leftX, topY, width, 5);
+        g_drawBar(p, topBar, snapshot.limits[0].percent(), fg);
+    }
+    
+    if (snapshot.limits.size() >= 2) {
+        QRect bottomBar(leftX, topY + 5 + 2, width, 3);
+        g_drawBar(p, bottomBar, snapshot.limits[1].percent(), fg);
+    }
 }

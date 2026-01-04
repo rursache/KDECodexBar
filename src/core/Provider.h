@@ -20,6 +20,7 @@ enum class ProviderState {
 };
 
 struct UsageLimit {
+    QString label; // e.g. "Session", "Weekly", "Gemini Flash"
     double used = 0.0;
     double total = 0.0;
     QString unit; // "tokens", "requests", etc.
@@ -33,9 +34,7 @@ struct UsageLimit {
 };
 
 struct UsageSnapshot {
-    UsageLimit session;
-    UsageLimit weekly;
-    QDateTime resetTime;
+    QList<UsageLimit> limits;
     QDateTime timestamp;
 };
 

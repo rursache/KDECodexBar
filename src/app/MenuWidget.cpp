@@ -99,15 +99,34 @@ void MenuWidget::updateData(const QString &providerName, const UsageSnapshot &sn
     // For now hardcode or format timestamp
     // m_statusLabel->setText(...) 
 
-    // Session
-    m_sessionBar->setValue(static_cast<int>(snapshot.session.percent()));
-    m_sessionUsed->setText(QString("%1% used").arg(snapshot.session.percent(), 0, 'f', 0));
-    m_sessionReset->setText(snapshot.session.resetDescription);
+    // Session (First Limit)
+    if (snapshot.limits.size() >= 1) {
+        const auto &l1 = snapshot.limits[0];
+        m_sessionBar->setValue(static_cast<int>(l1.percent()));
+        m_sessionUsed->setText(QString("%1% used").arg(l1.percent(), 0, 'f', 0));
+        m_sessionReset->setText(l1.resetDescription);
+        
+        // Update label? m_session is section title. Can't easily change "Session" to "Flash" here without refactor.
+        // For this task, we keep the widget simple or just ignore it if we aren't using MenuWidget actively 
+        // (TrayIcon uses text actions now).
+        // But to fix compilation, we just map index 0 -> Session fields.
+    } else {
+        m_sessionBar->setValue(0);
+        m_sessionUsed->setText("-");
+        m_sessionReset->clear();
+    }
 
-    // Weekly
-    m_weeklyBar->setValue(static_cast<int>(snapshot.weekly.percent()));
-    m_weeklyUsed->setText(QString("%1% used").arg(snapshot.weekly.percent(), 0, 'f', 0));
-    m_weeklyReset->setText(snapshot.weekly.resetDescription);
+    // Weekly (Second Limit)
+    if (snapshot.limits.size() >= 2) {
+        const auto &l2 = snapshot.limits[1];
+        m_weeklyBar->setValue(static_cast<int>(l2.percent()));
+        m_weeklyUsed->setText(QString("%1% used").arg(l2.percent(), 0, 'f', 0));
+        m_weeklyReset->setText(l2.resetDescription);
+    } else {
+        m_weeklyBar->setValue(0);
+        m_weeklyUsed->setText("-");
+        m_weeklyReset->clear();
+    }
 }
 
 void MenuWidget::paintEvent(QPaintEvent *) {
