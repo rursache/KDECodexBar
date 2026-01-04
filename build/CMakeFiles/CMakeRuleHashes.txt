@@ -1,8 +1,0 @@
-# Hashes of file build rules.
-35dcf50f98c85e0f2b878eab1e0e3ace CMakeFiles/fetch-translations
-8bf932c4e582b5299fc7a15cc4b25198 CMakeFiles/uninstall
-4914b66daba4c75da1927388c3f221d5 releaseme
-c5e9a0b136b15ca991db9f05e00ecb0c src/app/CMakeFiles/codexbar_autogen
-46e68cdd2e7d0ab1e3c7883002229a3f src/app/codexbar_autogen/timestamp
-aea138e1dd1fc6573687e3ba34ea0525 src/core/CMakeFiles/codexbar-core_autogen
-bcccedd511b1952c4a51fa877303a611 src/core/codexbar-core_autogen/timestamp

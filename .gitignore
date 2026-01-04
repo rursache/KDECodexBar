@@ -1,0 +1,18 @@
+# Build artifacts
+/build/
+
+# CMake artifacts (outside /build if generated in-source)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+
+# Common compiled outputs
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
