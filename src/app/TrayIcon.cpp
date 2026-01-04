@@ -56,37 +56,54 @@ TrayIcon::TrayIcon(ProviderRegistry *registry, QObject *parent)
 }
 
 void TrayIcon::updateIcon() {
-    // For v1, just use Codex provider
+    QStringList tooltipLines;
+    tooltipLines << "codexbar"; // Fallback title
+    
+    // 1. Codex
     auto *codex = m_registry->provider(ProviderID::Codex);
     if (codex) {
         auto snap = codex->snapshot();
-        // Assume dark theme for now (TODO: detect)
-        // Verify we have valid data (total > 0)
+        // Use Codex icon if active (TODO: merge or cycle icons?)
+        // For now, Codex wins for the icon.
         if (snap.session.total > 0) {
-            m_sni->setIconByPixmap(IconRenderer::renderIcon(snap, false));
-            
-            // Update widget (disabled for now as per requested menu layout)
-            // m_menuWidget->updateData(codex->name(), snap);
-
-            // Update tooltip
-            QString title = QString("%1 Usage").arg(codex->name());
-            QString tip = QString("Session: %1% | Weekly: %2%")
-                .arg(snap.session.percent(), 0, 'f', 1)
-                .arg(snap.weekly.percent(), 0, 'f', 1);
-            m_sni->setToolTip("codexbar", title, tip);
-
-            // Update menu actions
-            // Use indentation as requested
-            if (m_sessionAction) m_sessionAction->setText(QString("   Session: %1%").arg(snap.session.percent(), 0, 'f', 1));
-            if (m_weeklyAction) m_weeklyAction->setText(QString("   Weekly: %1%").arg(snap.weekly.percent(), 0, 'f', 1));
+             m_sni->setIconByPixmap(IconRenderer::renderIcon(snap, false));
         }
+
+        if (m_codexSessionAction) m_codexSessionAction->setText(QString("   Session: %1%").arg(snap.session.percent(), 0, 'f', 1));
+        if (m_codexWeeklyAction) m_codexWeeklyAction->setText(QString("   Weekly: %1%").arg(snap.weekly.percent(), 0, 'f', 1));
+        
+        tooltipLines.clear();
+        tooltipLines << QString("<b>%1 Usage</b>").arg(codex->name());
+        tooltipLines << QString("Session: %1%").arg(snap.session.percent(), 0, 'f', 1);
+        tooltipLines << QString("Weekly: %1%").arg(snap.weekly.percent(), 0, 'f', 1);
     }
+
+    // 2. Claude
+    auto *claude = m_registry->provider(ProviderID::Claude);
+    if (claude) {
+        auto snap = claude->snapshot();
+        
+        if (m_claudeSessionAction) m_claudeSessionAction->setText(QString("   Session: %1%").arg(snap.session.percent(), 0, 'f', 1));
+        if (m_claudeWeeklyAction) m_claudeWeeklyAction->setText(QString("   Weekly: %1%").arg(snap.weekly.percent(), 0, 'f', 1));
+
+        if (!tooltipLines.isEmpty()) tooltipLines << ""; // spacer
+        tooltipLines << QString("<b>%1 Usage</b>").arg(claude->name());
+        tooltipLines << QString("Session: %1%").arg(snap.session.percent(), 0, 'f', 1);
+        tooltipLines << QString("Weekly: %1%").arg(snap.weekly.percent(), 0, 'f', 1);
+    }
+    
+    // Set Tooltip
+    // KStatusNotifierItem setToolTip(iconName, title, subTitle)
+    // We can put the whole multiline string in subTitle?
+    // Title: CodexBar
+    // Subtitle: The list.
+    m_sni->setToolTip("codexbar", "CodexBar", tooltipLines.join("\n"));
 }
 
 void TrayIcon::setupMenu() {
     // 1. App Name
     auto *title = m_menu->addAction("CodexBar");
-    title->setEnabled(false); // Header style
+    title->setEnabled(false);
     
     m_menu->addSeparator();
 
@@ -94,12 +111,22 @@ void TrayIcon::setupMenu() {
     auto *codexHeader = m_menu->addAction("Codex");
     codexHeader->setEnabled(false);
 
-    m_sessionAction = m_menu->addAction("   Session: --%");
-    m_sessionAction->setEnabled(false);
+    m_codexSessionAction = m_menu->addAction("   Session: --%");
+    m_codexSessionAction->setEnabled(false);
     
-    m_weeklyAction = m_menu->addAction("   Weekly: --%");
-    m_weeklyAction->setEnabled(false);
+    m_codexWeeklyAction = m_menu->addAction("   Weekly: --%");
+    m_codexWeeklyAction->setEnabled(false);
     
+    // 3. Claude Section
+    auto *claudeHeader = m_menu->addAction("Claude");
+    claudeHeader->setEnabled(false);
+
+    m_claudeSessionAction = m_menu->addAction("   Session: --%");
+    m_claudeSessionAction->setEnabled(false);
+    
+    m_claudeWeeklyAction = m_menu->addAction("   Weekly: --%");
+    m_claudeWeeklyAction->setEnabled(false);
+
     m_menu->addSeparator();
     
     // 3. Settings & Refresh

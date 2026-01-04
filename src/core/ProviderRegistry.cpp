@@ -1,8 +1,10 @@
 #include "ProviderRegistry.h"
 #include "CodexProvider.h"
+#include "ClaudeProvider.h"
 
 ProviderRegistry::ProviderRegistry(QObject *parent) : QObject(parent) {
-    registerProvider(new CodexProvider(this));
+    m_providers.append(new CodexProvider(this));
+    m_providers.append(new ClaudeProvider(this));
 }
 
 void ProviderRegistry::registerProvider(Provider *provider) {
