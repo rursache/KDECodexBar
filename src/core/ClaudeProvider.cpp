@@ -2,12 +2,14 @@
 #include <QDebug>
 #include <QRegularExpression>
 #include <QStandardPaths>
+#include <QTimer>
 
 ClaudeProvider::ClaudeProvider(QObject *parent)
     : Provider(ProviderID::Claude, parent)
     , m_session(nullptr)
     , m_fetching(false)
-    , m_confirmationSent(false)
+    , m_statusSent(false)
+    , m_arrowsSent(0)
 {
 }
 
@@ -23,7 +25,8 @@ void ClaudeProvider::refresh() {
     }
 
     m_fetching = true;
-    m_confirmationSent = false;
+    m_statusSent = false;
+    m_arrowsSent = 0;
     m_buffer.clear();
     cleanup();
 
@@ -40,21 +43,39 @@ void ClaudeProvider::refresh() {
 }
 
 void ClaudeProvider::onPtyData(const QByteArray &data) {
+    if (!m_session) return;
     m_buffer.append(QString::fromUtf8(data));
-    
-    // Auto-send /usage if we see a prompt
-    // Use \r because interactive CLI might expect CR
-    if (!m_buffer.contains("/usage") && (m_buffer.contains("Ready to code") || m_buffer.contains(">"))) {
-         m_session->write("/usage\r");
+
+    // Strip ANSI for detection purposes
+    static QRegularExpression ansiRx(R"(\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]))");
+    QString stripped = m_buffer;
+    stripped.remove(ansiRx);
+
+    // Step 1: Send /status when prompt appears
+    if (!m_statusSent && (stripped.contains("Ready to code") || stripped.contains(QChar(0x276F)))) {
+        m_session->write("/status\r");
+        m_statusSent = true;
+        return;
     }
 
-    // If we see the autocomplete menu but no result yet, press Enter again
-    if (!m_confirmationSent && m_buffer.contains("Show plan usage limits") && !m_buffer.contains("Current session")) {
-        m_session->write("\r");
-        m_confirmationSent = true;
+    // Step 2: First right arrow when tab bar appears (Status → Config)
+    if (m_statusSent && m_arrowsSent == 0 && stripped.contains("Config") && stripped.contains("Usage")) {
+        m_session->write("\x1b[C");
+        m_arrowsSent = 1;
+        return;
     }
 
-    parseOutput(m_buffer);
+    // Step 3: Second right arrow when Config tab content appears (Config → Usage)
+    if (m_arrowsSent == 1 && stripped.contains("Auto-compact")) {
+        m_session->write("\x1b[C");
+        m_arrowsSent = 2;
+        return;
+    }
+
+    // Step 4: Parse usage data when available
+    if (m_arrowsSent == 2) {
+        parseOutput(m_buffer);
+    }
 }
 
 void ClaudeProvider::onProcessExited(int exitCode) {
@@ -65,75 +86,46 @@ void ClaudeProvider::onProcessExited(int exitCode) {
 
 void ClaudeProvider::cleanup() {
     if (m_session) {
-        m_session->close();
-        m_session->deleteLater();
-        m_session = nullptr;
+        PtySession *s = m_session;
+        m_session = nullptr; // Prevent re-entrant cleanup via processExited signal
+        s->close();
+        s->deleteLater();
     }
-}
-
-// Helper to extract percent from a specific block
-double extractPercent(const QStringList &lines, const QString &label) {
-    // Find label
-    int startIdx = -1;
-    for (int i = 0; i < lines.size(); ++i) {
-        if (lines[i].contains(label, Qt::CaseInsensitive)) {
-            startIdx = i;
-            break;
-        }
-    }
-    if (startIdx == -1) return -1.0;
-
-    // Scan next 15 lines
-    static QRegularExpression pctRegex(R"((\d{1,3})\s*%\s*(used|left))", QRegularExpression::CaseInsensitiveOption);
-    
-    for (int i = startIdx; i < qMin(startIdx + 15, lines.size()); ++i) {
-        auto match = pctRegex.match(lines[i]);
-        if (match.hasMatch()) {
-            double val = match.captured(1).toDouble();
-            QString type = match.captured(2).toLower();
-            if (type == "used") {
-                return val;
-            } else {
-                return 100.0 - val;
-            }
-        }
-    }
-    return -1.0;
 }
 
 void ClaudeProvider::parseOutput(const QString &output) {
-    UsageSnapshot snap = snapshot(); // Get current snapshot
-    snap.limits.clear(); // IMPORTANT: Clear old limits before adding new ones
-
-
-    // Remove ANSI codes
+    // Remove ANSI escape codes
     static QRegularExpression ansiRegex(R"(\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]))");
     QString clean = output;
     clean.remove(ansiRegex);
-    
-    // qDebug().noquote() << clean; // Uncomment for debugging
-    
-    QStringList lines = clean.split('\n');
 
+    // Match usage entries: label followed by N% used
+    static QRegularExpression usageRegex(
+        R"((Current session|Current week \(all models\)|Current week \(Sonnet only\)|Extra usage)[^%]*?(\d{1,3})\s*%\s*used)",
+        QRegularExpression::CaseInsensitiveOption
+    );
+
+    UsageSnapshot snap;
+    snap.timestamp = QDateTime::currentDateTime();
     bool found = false;
 
-    // Extract Session
-    double sessionVal = extractPercent(lines, "Current session");
-    if (sessionVal >= 0) {
-        UsageLimit limit;
-        limit.label = "Session";
-        limit.used = sessionVal;
-        limit.total = 100.0;
-        snap.limits.append(limit);
-        found = true;
-    }
+    auto it = usageRegex.globalMatch(clean);
+    while (it.hasNext()) {
+        auto match = it.next();
+        QString rawLabel = match.captured(1);
+        double val = match.captured(2).toDouble();
 
-    // Extract Weekly
-    double weeklyVal = extractPercent(lines, "Current week");
-    if (weeklyVal >= 0) {
         UsageLimit limit;
-        limit.label = "Weekly";
-        limit.used = weeklyVal;
+        if (rawLabel.startsWith("Current session", Qt::CaseInsensitive))
+            limit.label = "Session";
+        else if (rawLabel.contains("all models", Qt::CaseInsensitive))
+            limit.label = "Weekly (all)";
+        else if (rawLabel.contains("Sonnet only", Qt::CaseInsensitive))
+            limit.label = "Weekly (Sonnet)";
+        else if (rawLabel.startsWith("Extra", Qt::CaseInsensitive))
+            limit.label = "Extra";
+
+        limit.used = val;
         limit.total = 100.0;
         snap.limits.append(limit);
         found = true;
@@ -143,5 +135,11 @@ void ClaudeProvider::parseOutput(const QString &output) {
         setSnapshot(snap);
         setState(ProviderState::Active);
         emit dataChanged();
+
+        // Defer cleanup to next event loop iteration — we're inside a PtySession signal
+        QTimer::singleShot(0, this, [this]() {
+            cleanup();
+            m_fetching = false;
+        });
     }
 }

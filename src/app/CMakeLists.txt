@@ -21,3 +21,4 @@ target_include_directories(kdecodexbar PRIVATE ${CMAKE_SOURCE_DIR}/src/core)
 
 install(TARGETS kdecodexbar ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 install(FILES ${CMAKE_SOURCE_DIR}/resources/codexbar.desktop DESTINATION ${KDE_INSTALL_APPDIR} RENAME kdecodexbar.desktop)
+install(FILES ${CMAKE_SOURCE_DIR}/resources/kdecodexbar.png DESTINATION ${KDE_INSTALL_ICONDIR}/hicolor/512x512/apps)
