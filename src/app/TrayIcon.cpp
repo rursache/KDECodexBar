@@ -8,6 +8,7 @@
 #include <QCoreApplication>
 #include "ProviderRegistry.h"
 #include "Provider.h"
+#include <QDesktopServices>
 #include <QSettings>
 
 TrayIcon::TrayIcon(ProviderRegistry *registry, QObject *parent)
@@ -16,7 +17,7 @@ TrayIcon::TrayIcon(ProviderRegistry *registry, QObject *parent)
     , m_menu(new QMenu())
     , m_registry(registry)
     , m_timer(new QTimer(this))
-    , m_selectedProviderID(ProviderID::Codex)
+    , m_selectedProviderID(static_cast<ProviderID>(QSettings("KDECodexBar", "KDECodexBar").value("selected_provider", static_cast<int>(ProviderID::Codex)).toInt()))
 {
     // Basic SNI setup
     m_sni->setCategory(KStatusNotifierItem::ApplicationStatus);
@@ -109,9 +110,16 @@ void TrayIcon::updateIcon() {
 void TrayIcon::setupMenu() {
     m_menu->clear();
 
-    // App Name
-    auto *title = m_menu->addAction("KDECodexBar");
-    title->setEnabled(false);
+    // App Name + Version (clickable → GitHub release)
+    QString version = QCoreApplication::applicationVersion();
+    auto *title = m_menu->addAction(QString("KDECodexBar %1").arg(version));
+    connect(title, &QAction::triggered, this, [](){
+        QString version = QCoreApplication::applicationVersion();
+        QString url = version.startsWith("v")
+            ? QString("https://github.com/rursache/KDECodexBar/releases/tag/%1").arg(version)
+            : QString("https://github.com/rursache/KDECodexBar");
+        QDesktopServices::openUrl(QUrl(url));
+    });
     m_menu->addSeparator();
 
     for (const auto &provider : m_registry->providers()) {
@@ -130,6 +138,7 @@ void TrayIcon::setupMenu() {
         // Handle selection
         connect(header, &QAction::triggered, this, [this, provider](){
             m_selectedProviderID = provider->id();
+            QSettings("KDECodexBar", "KDECodexBar").setValue("selected_provider", static_cast<int>(m_selectedProviderID));
             updateIcon(); // Will redraw icon/tooltip and rebuild menu (updating checks)
         });
 

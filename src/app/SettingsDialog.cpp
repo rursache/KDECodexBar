@@ -14,7 +14,7 @@ SettingsDialog::SettingsDialog(QWidget *parent)
     : QDialog(parent)
     , m_settings("KDECodexBar", "KDECodexBar")
 {
-    setWindowTitle(tr("KDECodexBar Settings"));
+    setWindowTitle(tr("Settings"));
     setFixedSize(300, 200);
 
     QVBoxLayout *layout = new QVBoxLayout(this);

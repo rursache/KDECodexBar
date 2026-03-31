@@ -28,5 +28,18 @@ find_package(KF6 6.0 REQUIRED COMPONENTS
     WindowSystem
 )
 
+# Generate version string from git tag, falling back to branch/commit
+execute_process(
+    COMMAND git describe --tags --always
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(NOT GIT_VERSION)
+    set(GIT_VERSION "unknown")
+endif()
+add_compile_definitions(APP_VERSION="${GIT_VERSION}")
+
 add_subdirectory(src/core)
 add_subdirectory(src/app)

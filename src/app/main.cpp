@@ -9,10 +9,10 @@ int main(int argc, char *argv[]) {
   QApplication app(argc, argv);
   KLocalizedString::setApplicationDomain("kdecodexbar");
 
-  KAboutData aboutData("kdecodexbar", i18n("KDECodexBar"), "0.1.0",
+  KAboutData aboutData("kdecodexbar", i18n("KDECodexBar"), APP_VERSION,
                        i18n("CodexBar for Plasma"), KAboutLicense::MIT,
-                       i18n("(c) 2024 CodexBar Contributors"), QString(),
-                       "https://github.com/steipete/CodexBar");
+                       i18n("(c) 2025 Radu Ursache"), QString(),
+                       "https://github.com/rursache/KDECodexBar");
   KAboutData::setApplicationData(aboutData);
 
   // Needed for proper icon association and portal registration
