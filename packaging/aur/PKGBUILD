@@ -14,7 +14,8 @@ sha256sums=('419ce679af476c5384e93de680922fbadb22927df5005c9b3694d69573748fa5')
 build() {
     cmake -B build -S "${srcdir}/KDECodexBar-${pkgver}" \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX=/usr
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DAPP_VERSION="v${pkgver}"
     cmake --build build
 }
 

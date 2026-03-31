@@ -79,8 +79,7 @@ void TrayIcon::updateIcon() {
     }
     
     if (!iconUpdated) {
-        // Fallback or keep previous? simpler to just placeholder if empty/inactive
-        // m_sni->setIconByPixmap(IconRenderer::renderPlaceholder());
+        m_sni->setIconByPixmap(IconRenderer::renderPlaceholder());
     }
 
     // 2. Tooltip Update
