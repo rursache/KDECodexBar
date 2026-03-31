@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <sys/ioctl.h>
 #include <csignal>
 #include <vector>
 #include <QDebug>
@@ -25,8 +26,13 @@ bool PtySession::start(const QString &program, const QStringList &arguments) {
     int masterFd, slaveFd;
     char slaveName[1024];
 
+    // Set a reasonable terminal size — desktop launches have no inherited size
+    struct winsize ws = {};
+    ws.ws_row = 40;
+    ws.ws_col = 120;
+
     // Create pseudo-terminal
-    if (openpty(&masterFd, &slaveFd, slaveName, nullptr, nullptr) == -1) {
+    if (openpty(&masterFd, &slaveFd, slaveName, nullptr, &ws) == -1) {
         qCritical() << "openpty failed";
         return false;
     }
@@ -54,6 +60,11 @@ bool PtySession::start(const QString &program, const QStringList &arguments) {
         dup2(slaveFd, STDOUT_FILENO);
         dup2(slaveFd, STDERR_FILENO);
         if (slaveFd > STDERR_FILENO) ::close(slaveFd);
+
+        // Ensure terminal env vars are set for proper TUI rendering
+        // Desktop launches lack these, causing claude to show the theme picker
+        setenv("TERM", "xterm-256color", 0);
+        setenv("COLORTERM", "truecolor", 0);
 
         // Prepare args
         std::vector<char*> args;

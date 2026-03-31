@@ -1,8 +1,8 @@
 #include "ClaudeProvider.h"
 #include <QDebug>
 #include <QRegularExpression>
+#include <QDir>
 #include <QStandardPaths>
-#include <QTimer>
 
 ClaudeProvider::ClaudeProvider(QObject *parent)
     : Provider(ProviderID::Claude, parent)
@@ -11,13 +11,24 @@ ClaudeProvider::ClaudeProvider(QObject *parent)
     , m_statusSent(false)
     , m_arrowsSent(0)
 {
+    m_debounce.setSingleShot(true);
+    connect(&m_debounce, &QTimer::timeout, this, &ClaudeProvider::sendStatus);
 }
 
 void ClaudeProvider::refresh() {
     if (m_fetching) return;
 
-    // Check if claude is installed (simple check)
+    // Find claude binary — desktop launches may have a limited PATH
     QString claudePath = QStandardPaths::findExecutable("claude");
+    if (claudePath.isEmpty()) {
+        const QStringList extraPaths = {
+            QDir::homePath() + "/.local/bin",
+            QDir::homePath() + "/.npm/bin",
+            "/opt/claude-code/bin",
+            "/usr/local/bin",
+        };
+        claudePath = QStandardPaths::findExecutable("claude", extraPaths);
+    }
     if (claudePath.isEmpty()) {
         setState(ProviderState::Error);
         emit dataChanged();
@@ -28,13 +39,14 @@ void ClaudeProvider::refresh() {
     m_statusSent = false;
     m_arrowsSent = 0;
     m_buffer.clear();
+    m_debounce.stop();
     cleanup();
 
     m_session = new PtySession(this);
     connect(m_session, &PtySession::dataRead, this, &ClaudeProvider::onPtyData);
     connect(m_session, &PtySession::processExited, this, &ClaudeProvider::onProcessExited);
 
-    if (!m_session->start("claude", {})) {
+    if (!m_session->start(claudePath, {})) {
         setState(ProviderState::Error);
         cleanup();
         m_fetching = false;
@@ -46,40 +58,68 @@ void ClaudeProvider::onPtyData(const QByteArray &data) {
     if (!m_session) return;
     m_buffer.append(QString::fromUtf8(data));
 
+    // Before /status is sent, debounce — wait for output to settle
+    // so we don't send commands into the welcome animation
+    if (!m_statusSent) {
+        m_debounce.start(1500);
+        return;
+    }
+
     // Strip ANSI for detection purposes
     static QRegularExpression ansiRx(R"(\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]))");
     QString stripped = m_buffer;
     stripped.remove(ansiRx);
 
-    // Step 1: Send /status when prompt appears
-    if (!m_statusSent && (stripped.contains("Ready to code") || stripped.contains(QChar(0x276F)))) {
-        m_session->write("/status\r");
-        m_statusSent = true;
-        return;
-    }
-
-    // Step 2: First right arrow when tab bar appears (Status → Config)
-    if (m_statusSent && m_arrowsSent == 0 && stripped.contains("Config") && stripped.contains("Usage")) {
+    // First right arrow when tab bar appears (Status → Config)
+    if (m_arrowsSent == 0 && stripped.contains("Config") && stripped.contains("Usage")) {
         m_session->write("\x1b[C");
         m_arrowsSent = 1;
         return;
     }
 
-    // Step 3: Second right arrow when Config tab content appears (Config → Usage)
+    // Second right arrow when Config tab content appears (Config → Usage)
     if (m_arrowsSent == 1 && stripped.contains("Auto-compact")) {
         m_session->write("\x1b[C");
         m_arrowsSent = 2;
         return;
     }
 
-    // Step 4: Parse usage data when available
+    // Parse usage data when available
     if (m_arrowsSent == 2) {
         parseOutput(m_buffer);
     }
 }
 
+void ClaudeProvider::sendStatus() {
+    if (!m_session || m_statusSent) return;
+
+    // Strip ANSI to check buffer content
+    static QRegularExpression ansiRx(R"(\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]))");
+    QString stripped = m_buffer;
+    stripped.remove(ansiRx);
+
+    // Dismiss interactive dialogs that block the prompt
+    // Theme picker (first-run) or workspace trust dialog
+    if (stripped.contains("Darkmode") && stripped.contains("Lightmode")) {
+        m_buffer.clear();
+        m_session->write("\r");
+        m_debounce.start(3000);
+        return;
+    }
+    if (stripped.contains("Itrustthisfolder") || stripped.contains("trustthisfolder")) {
+        m_buffer.clear();
+        m_session->write("\r");
+        m_debounce.start(3000);
+        return;
+    }
+
+    m_session->write("/status\r");
+    m_statusSent = true;
+}
+
 void ClaudeProvider::onProcessExited(int exitCode) {
     Q_UNUSED(exitCode);
+    m_debounce.stop();
     cleanup();
     m_fetching = false;
 }
@@ -87,7 +127,7 @@ void ClaudeProvider::onProcessExited(int exitCode) {
 void ClaudeProvider::cleanup() {
     if (m_session) {
         PtySession *s = m_session;
-        m_session = nullptr; // Prevent re-entrant cleanup via processExited signal
+        m_session = nullptr;
         s->close();
         s->deleteLater();
     }
