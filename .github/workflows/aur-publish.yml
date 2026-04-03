@@ -55,12 +55,12 @@ jobs:
             > .SRCINFO
 
       - name: Publish to AUR
-        uses: KSXGitHub/github-actions-deploy-aur@v3.0.1
+        uses: rursache/aur-deploy@v1
         with:
           pkgname: kdecodexbar
           pkgbuild: packaging/aur/PKGBUILD
-          assets: packaging/aur/.SRCINFO
-          commit_username: Radu Ursache
-          commit_email: radu@ursache.ro
+          srcinfo: packaging/aur/.SRCINFO
+          commit_username: "Radu Ursache"
+          commit_email: "radu@ursache.ro"
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          commit_message: "Update to v${{ steps.version.outputs.version }}"
+          version: ${{ steps.version.outputs.version }}
