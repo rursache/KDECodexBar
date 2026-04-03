@@ -10,52 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Compute source tarball sha256
-        id: sha
-        run: |
-          sha=$(curl -sL "https://codeload.github.com/${{ github.repository }}/tar.gz/${{ github.ref_name }}" | sha256sum | cut -d' ' -f1)
-          echo "sha256=$sha" >> "$GITHUB_OUTPUT"
-
-      - name: Update PKGBUILD and .SRCINFO
-        env:
-          PKG_VERSION: ${{ steps.version.outputs.version }}
-          PKG_SHA256: ${{ steps.sha.outputs.sha256 }}
-        run: |
-          cd packaging/aur
-          sed -i "s/^pkgver=.*/pkgver=${PKG_VERSION}/" PKGBUILD
-          sed -i "s/^sha256sums=.*/sha256sums=('${PKG_SHA256}')/" PKGBUILD
-
-          # Regenerate .SRCINFO (tab-indented, no leading spaces)
-          printf '%s\n' \
-            "pkgbase = kdecodexbar" \
-            "	pkgdesc = AI Usage Tracker for KDE Plasma (Codex, Claude, Gemini, Antigravity)" \
-            "	pkgver = ${PKG_VERSION}" \
-            "	pkgrel = 1" \
-            "	url = https://github.com/rursache/KDECodexBar" \
-            "	arch = x86_64" \
-            "	license = MIT" \
-            "	makedepends = cmake" \
-            "	makedepends = extra-cmake-modules" \
-            "	makedepends = qt6-tools" \
-            "	makedepends = git" \
-            "	depends = qt6-base" \
-            "	depends = kstatusnotifieritem" \
-            "	depends = kcoreaddons" \
-            "	depends = kconfig" \
-            "	depends = ki18n" \
-            "	depends = kwindowsystem" \
-            "	source = kdecodexbar-${PKG_VERSION}.tar.gz::https://codeload.github.com/rursache/KDECodexBar/tar.gz/v${PKG_VERSION}" \
-            "	sha256sums = ${PKG_SHA256}" \
-            "" \
-            "pkgname = kdecodexbar" \
-            > .SRCINFO
-
-      - name: Publish to AUR
-        uses: rursache/aur-deploy@v1
+      - uses: rursache/aur-deploy@v2
         with:
           pkgname: kdecodexbar
           pkgbuild: packaging/aur/PKGBUILD
@@ -63,4 +18,3 @@ jobs:
           commit_username: "Radu Ursache"
           commit_email: "radu@ursache.ro"
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          version: ${{ steps.version.outputs.version }}
