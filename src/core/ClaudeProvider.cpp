@@ -139,9 +139,10 @@ void ClaudeProvider::parseOutput(const QString &output) {
     QString clean = output;
     clean.remove(ansiRegex);
 
-    // Match usage entries: label followed by N% used
+    // Match usage entries: label followed by N% used, optionally followed by reset info
+    // After ANSI stripping, text may lose spaces, so "Resets" can appear as "Rese(t|s)s" etc.
     static QRegularExpression usageRegex(
-        R"((Current session|Current week \(all models\)|Current week \(Sonnet only\)|Extra usage)[^%]*?(\d{1,3})\s*%\s*used)",
+        R"((Current\s*session|Current\s*week\s*\(all\s*models\)|Current\s*week\s*\(Sonnet\s*only\)|Extra\s*usage)[^%]*?(\d{1,3})\s*%\s*used\s*(Rese[^\(]*\([^\)]+\))?)",
         QRegularExpression::CaseInsensitiveOption
     );
 
@@ -154,19 +155,30 @@ void ClaudeProvider::parseOutput(const QString &output) {
         auto match = it.next();
         QString rawLabel = match.captured(1);
         double val = match.captured(2).toDouble();
+        QString rawReset = match.captured(3).trimmed();
 
         UsageLimit limit;
-        if (rawLabel.startsWith("Current session", Qt::CaseInsensitive))
+        if (rawLabel.startsWith("Current session", Qt::CaseInsensitive) ||
+            rawLabel.startsWith("Currentsession", Qt::CaseInsensitive))
             limit.label = "Session";
-        else if (rawLabel.contains("all models", Qt::CaseInsensitive))
+        else if (rawLabel.contains("all models", Qt::CaseInsensitive) ||
+                 rawLabel.contains("allmodels", Qt::CaseInsensitive))
             limit.label = "Weekly (all)";
-        else if (rawLabel.contains("Sonnet only", Qt::CaseInsensitive))
+        else if (rawLabel.contains("Sonnet only", Qt::CaseInsensitive) ||
+                 rawLabel.contains("Sonnetonly", Qt::CaseInsensitive))
             limit.label = "Weekly (Sonnet)";
         else if (rawLabel.startsWith("Extra", Qt::CaseInsensitive))
             limit.label = "Extra";
 
         limit.used = val;
         limit.total = 100.0;
+        if (!rawReset.isEmpty()) {
+            // Clean up: normalize "Rese(t)s" variants to "Resets"
+            rawReset.replace(QRegularExpression(R"(^Rese\w*s\s*)"), "Resets ");
+            // Remove timezone like "(Europe/Bucharest)"
+            rawReset.replace(QRegularExpression(R"(\s*\([A-Za-z]+/[A-Za-z_]+\))"), "");
+            limit.resetDescription = rawReset.simplified();
+        }
         snap.limits.append(limit);
         found = true;
     }

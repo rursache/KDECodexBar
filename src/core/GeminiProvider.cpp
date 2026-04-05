@@ -191,10 +191,22 @@ void GeminiProvider::onQuotaReply(QNetworkReply *reply) {
         else limit.label = target;
         
         limit.total = 100.0;
-        limit.resetDescription = ""; 
+        limit.resetDescription = "";
 
         if (modelUsage.contains(target)) {
             limit.used = modelUsage[target].usedPct;
+            QDateTime resetDt = QDateTime::fromString(modelUsage[target].resetTime, Qt::ISODate);
+            if (resetDt.isValid()) {
+                qint64 secsLeft = QDateTime::currentDateTimeUtc().secsTo(resetDt);
+                if (secsLeft > 0) {
+                    int hours = secsLeft / 3600;
+                    int mins = (secsLeft % 3600) / 60;
+                    if (hours > 0)
+                        limit.resetDescription = QString("Resets in %1h %2m").arg(hours).arg(mins);
+                    else
+                        limit.resetDescription = QString("Resets in %1m").arg(mins);
+                }
+            }
         } else {
             // Force include even if 0 usage / empty response
             limit.used = 0.0;

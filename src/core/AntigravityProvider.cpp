@@ -4,6 +4,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QRegularExpression>
+#include <QDateTime>
 #include <QNetworkReply>
 #include <QSslConfiguration>
 #include <QStandardPaths>
@@ -295,7 +296,18 @@ void AntigravityProvider::onUserStatusReply(QNetworkReply *reply) {
             limit.label = displayName;
             limit.total = 100.0;
             limit.used = (1.0 - found[idx].remaining) * 100.0;
-            limit.resetDescription = ""; // Need ISO parser if we want detailed "3h" text
+            QDateTime resetDt = QDateTime::fromString(found[idx].resetTime, Qt::ISODate);
+            if (resetDt.isValid()) {
+                qint64 secsLeft = QDateTime::currentDateTimeUtc().secsTo(resetDt);
+                if (secsLeft > 0) {
+                    int hours = secsLeft / 3600;
+                    int mins = (secsLeft % 3600) / 60;
+                    if (hours > 0)
+                        limit.resetDescription = QString("Resets in %1h %2m").arg(hours).arg(mins);
+                    else
+                        limit.resetDescription = QString("Resets in %1m").arg(mins);
+                }
+            }
             snap.limits.append(limit);
         }
     };
