@@ -173,11 +173,49 @@ void ClaudeProvider::parseOutput(const QString &output) {
         limit.used = val;
         limit.total = 100.0;
         if (!rawReset.isEmpty()) {
-            // Clean up: normalize "Rese(t)s" variants to "Resets"
-            rawReset.replace(QRegularExpression(R"(^Rese\w*s\s*)"), "Resets ");
-            // Remove timezone like "(Europe/Bucharest)"
+            // Remove timezone like "(Europe/Bucharest)" and normalize prefix
             rawReset.replace(QRegularExpression(R"(\s*\([A-Za-z]+/[A-Za-z_]+\))"), "");
-            limit.resetDescription = rawReset.simplified();
+            rawReset.replace(QRegularExpression(R"(^Rese\w*s\s*)", QRegularExpression::CaseInsensitiveOption), "");
+            QString timeStr = rawReset.simplified();
+
+            // Parse absolute time from Claude CLI into relative "Resets in Xh Ym"
+            // Formats: "5pm", "9:59am", "Apr 10, 9:59am", "Apr 10, 5pm"
+            QDateTime resetDt;
+            static QRegularExpression dateTimeRx(R"(^([A-Za-z]+)\s+(\d{1,2}),?\s+(.+)$)");
+            auto dtMatch = dateTimeRx.match(timeStr);
+            if (dtMatch.hasMatch()) {
+                // Has date component: "Apr 10, 9:59am"
+                QString monthDay = dtMatch.captured(1) + " " + dtMatch.captured(2);
+                QString timePart = dtMatch.captured(3).trimmed();
+                // Try with minutes then without
+                resetDt = QDateTime::fromString(
+                    QString("%1 %2 %3").arg(QDate::currentDate().year()).arg(monthDay).arg(timePart),
+                    "yyyy MMM d h:mmap");
+                if (!resetDt.isValid())
+                    resetDt = QDateTime::fromString(
+                        QString("%1 %2 %3").arg(QDate::currentDate().year()).arg(monthDay).arg(timePart),
+                        "yyyy MMM d hap");
+            } else {
+                // Time only: "5pm", "9:59am" — assume today
+                QTime t = QTime::fromString(timeStr, "h:mmap");
+                if (!t.isValid()) t = QTime::fromString(timeStr, "hap");
+                if (t.isValid()) resetDt = QDateTime(QDate::currentDate(), t);
+            }
+
+            if (resetDt.isValid()) {
+                qint64 secsLeft = QDateTime::currentDateTime().secsTo(resetDt);
+                if (secsLeft > 0) {
+                    int days = secsLeft / 86400;
+                    int hours = (secsLeft % 86400) / 3600;
+                    int mins = (secsLeft % 3600) / 60;
+                    if (days > 0)
+                        limit.resetDescription = QString("Resets in %1d %2h").arg(days).arg(hours);
+                    else if (hours > 0)
+                        limit.resetDescription = QString("Resets in %1h %2m").arg(hours).arg(mins);
+                    else
+                        limit.resetDescription = QString("Resets in %1m").arg(mins);
+                }
+            }
         }
         snap.limits.append(limit);
         found = true;

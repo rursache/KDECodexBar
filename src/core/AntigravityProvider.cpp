@@ -300,9 +300,12 @@ void AntigravityProvider::onUserStatusReply(QNetworkReply *reply) {
             if (resetDt.isValid()) {
                 qint64 secsLeft = QDateTime::currentDateTimeUtc().secsTo(resetDt);
                 if (secsLeft > 0) {
-                    int hours = secsLeft / 3600;
+                    int days = secsLeft / 86400;
+                    int hours = (secsLeft % 86400) / 3600;
                     int mins = (secsLeft % 3600) / 60;
-                    if (hours > 0)
+                    if (days > 0)
+                        limit.resetDescription = QString("Resets in %1d %2h").arg(days).arg(hours);
+                    else if (hours > 0)
                         limit.resetDescription = QString("Resets in %1h %2m").arg(hours).arg(mins);
                     else
                         limit.resetDescription = QString("Resets in %1m").arg(mins);
