@@ -81,8 +81,30 @@ QIcon IconRenderer::renderIcon(const UsageSnapshot &snapshot, bool isDarkTheme) 
 }
 
 QIcon IconRenderer::renderPlaceholder() {
-    UsageSnapshot snap; // Empty snapshot
-    return renderIcon(snap, false);
+    QPixmap pixmap(kIconSize);
+    pixmap.fill(Qt::transparent);
+
+    QPainter p(&pixmap);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    QColor fg = Qt::white;
+
+    QRect rect = QRect(QPoint(0, 0), kIconSize);
+    int topY = 6;
+    int leftX = 2;
+    int rightX = 2;
+    int width = rect.width() - leftX - rightX;
+
+    // Draw empty bars (0% fill) as placeholder
+    QRect topBar(leftX, topY, width, 5);
+    g_drawBar(p, topBar, 0, fg);
+
+    QRect bottomBar(leftX, topY + 5 + 2, width, 3);
+    g_drawBar(p, bottomBar, 0, fg);
+
+    QIcon icon;
+    icon.addPixmap(pixmap);
+    return icon;
 }
 
 void IconRenderer::drawBars(QPainter &p, const QRect &rect, const UsageSnapshot &snapshot, const QColor &fg) {
