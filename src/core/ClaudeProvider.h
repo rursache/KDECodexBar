@@ -23,6 +23,7 @@ private:
 
     PtySession *m_session;
     QTimer m_debounce;
+    QTimer m_timeout;
     QString m_buffer;
     bool m_fetching;
     bool m_statusSent;

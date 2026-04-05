@@ -13,6 +13,13 @@ ClaudeProvider::ClaudeProvider(QObject *parent)
 {
     m_debounce.setSingleShot(true);
     connect(&m_debounce, &QTimer::timeout, this, &ClaudeProvider::sendStatus);
+
+    m_timeout.setSingleShot(true);
+    connect(&m_timeout, &QTimer::timeout, this, [this]() {
+        qDebug() << "ClaudeProvider: Session timed out, forcing cleanup";
+        cleanup();
+        m_fetching = false;
+    });
 }
 
 void ClaudeProvider::refresh() {
@@ -40,7 +47,9 @@ void ClaudeProvider::refresh() {
     m_arrowsSent = 0;
     m_buffer.clear();
     m_debounce.stop();
+    m_timeout.stop();
     cleanup();
+    m_timeout.start(30000);
 
     m_session = new PtySession(this);
     connect(m_session, &PtySession::dataRead, this, &ClaudeProvider::onPtyData);
@@ -120,6 +129,7 @@ void ClaudeProvider::sendStatus() {
 void ClaudeProvider::onProcessExited(int exitCode) {
     Q_UNUSED(exitCode);
     m_debounce.stop();
+    m_timeout.stop();
     cleanup();
     m_fetching = false;
 }
@@ -228,6 +238,7 @@ void ClaudeProvider::parseOutput(const QString &output) {
 
         // Defer cleanup to next event loop iteration — we're inside a PtySession signal
         QTimer::singleShot(0, this, [this]() {
+            m_timeout.stop();
             cleanup();
             m_fetching = false;
         });

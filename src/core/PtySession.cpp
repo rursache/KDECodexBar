@@ -123,9 +123,18 @@ void PtySession::close() {
 
     if (m_pid != -1) {
         kill(m_pid, SIGTERM);
-        waitpid(m_pid, nullptr, 0); // Reaps zombie
+        // Try non-blocking reap first, then SIGKILL if needed
+        int status = 0;
+        if (waitpid(m_pid, &status, WNOHANG) == 0) {
+            // Process hasn't exited yet — give it a moment, then force kill
+            usleep(100000); // 100ms
+            if (waitpid(m_pid, &status, WNOHANG) == 0) {
+                kill(m_pid, SIGKILL);
+                waitpid(m_pid, &status, 0);
+            }
+        }
         m_pid = -1;
-        emit processExited(0);
+        emit processExited(WIFEXITED(status) ? WEXITSTATUS(status) : -1);
     }
 }
 
